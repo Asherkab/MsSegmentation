@@ -5,9 +5,9 @@ from Plots.Plots import Plots
 from Logger.Logger import Logger
 from DataUtils.DataUtils import DataUtils
 from Generator.Generator import Generator
-from KerasLossFunctions.LossFunctions import LossFunctions
-from KerasMetrics.Metrics import Metrics
-from KerasCallbacks.Callbacks import Callbacks
+from KerasLossFunctions.KerasLossFunctions import KerasLossFunctions
+from Metrics.KerasMetrics import KerasMetrics
+from KerasCallbacks.KerasCallbacks import KerasCallbacks
 from KerasModels.CenModel import CenModel as Model
 from MsSegmentationDataset import MsSegmentationDataset as Dataset
 
@@ -23,8 +23,8 @@ class MsSegmentationSettings(object):
 
         # Data preprocessing settings
         self.filters = {"expert_1": {"min_open": 1}}
-        self.preload_data = True
-        self.preload_labels = True
+        self.preload_data = False
+        self.preload_labels = False
         self.crop = True
         self.crop_offset = [[0, 1], [0, 1], [0, 0]]
 
@@ -61,9 +61,12 @@ class MsSegmentationSettings(object):
         # Data generator settings
         self.data_random_seed = 2018
         self.balance = False
-        self.folds = 5
+        self.folds = 1
         self.train_split = 0.8
-        self.test_split = 0.1
+        self.test_split = 0.1  # useful only in 1-fold setting
+        self.leave_out = False  # allows to choose for test data with unique values of 'self.leave_out_param'
+        self.leave_out_param = 'patient'
+        self.leave_out_values = [1]  # useful only in 1-fold setting
         self.generator = Generator(self)
 
         # Output settings
@@ -82,8 +85,8 @@ class MsSegmentationSettings(object):
 
         # Model compilation settings
         self.input_shape = (216, 180, 4)
-        self.losses = LossFunctions(self)
-        self.metric = Metrics(self)
+        self.losses = KerasLossFunctions(self)
+        self.metric = KerasMetrics(self)
         self.optimizer = Adam(lr=0.0001)
         self.loss = self.losses.dice_coef_loss()
         self.metrics = [self.metric.dice_coef, self.metric.recall, self.metric.precision]
@@ -99,7 +102,7 @@ class MsSegmentationSettings(object):
         self.val_steps = 15
 
         # Callbacks settings
-        self.callbacks_container = Callbacks(self)
+        self.callbacks_container = KerasCallbacks(self)
         self.save_weights_name = "weights_{epoch:03d}.h5"
         self.save_weights_path = os.path.join(self.simulation_folder, self.save_weights_name)
         self.save_best_only = True
