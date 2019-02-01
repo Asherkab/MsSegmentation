@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from keras.optimizers import Adam
 from keras.regularizers import l2
 from Plots.Plots import Plots
@@ -6,9 +7,11 @@ from Logger.Logger import Logger
 from DataUtils.DataUtils import DataUtils
 from Generator.Generator import Generator
 from KerasLossFunctions.KerasLossFunctions import KerasLossFunctions
+from Metrics.Metrics import Metrics
 from Metrics.KerasMetrics import KerasMetrics
 from KerasCallbacks.KerasCallbacks import KerasCallbacks
 from KerasModels.CenModel import CenModel as Model
+from MsSegmentationMaskTypes import MsSegmentationMaskTypes as MaskTypes
 from MsSegmentationDataset import MsSegmentationDataset as Dataset
 
 
@@ -23,48 +26,30 @@ class MsSegmentationSettings(object):
 
         # Data preprocessing settings
         self.filters = {"expert_1": {"min_open": 1}}
-        self.preload_data = False
-        self.preload_labels = False
+        self.preload_data = True
+        self.preload_labels = True
         self.crop = True
         self.crop_offset = [[0, 1], [0, 1], [0, 0]]
 
-        # 0 - 1st rater
-        # 1 - 2nd rater
-        # 2 - union
-        # 3 - intersection
-        # 4 - binary intersection region, soft union region
-        # 5 - 3d dilated 1st rater
-        # 6 - 3d conditionally dilated (constant iterations number)
-        # 7 - soft filtered union
-        # 8 - binary intersection, soft union, soft expansion
-        # 9 - gradual soft union
-        # 10 - 2d conditionally dilated soft 1st rater (constant data threshold)
-        # 11 - 2d dilated soft filtered 2nd rater (constant iterations number)
-        self.mask_type = 2
-
-        self.max_soft_label = 1
-        self.min_soft_label = 0.3
-        self.dilation_iterations = 6
-        self.dilation_thr = 0.2
-        self.data_thr = 0.99  # threshold of flair modality to extract candidates
-        self.min_candidates = 1  # use slice with more than 'min_candidates'
-        self.data_utils = DataUtils(self)
-        self.dataset = Dataset(self)
+        # Mask preprocessing settings
+        self.mask_type = MaskTypes.EXPERT_1
 
         # Data postprocessing settings
         self.opt_thr = 0.5
         self.find_opt_thr = True
+        self.thrs_to_check = np.arange(0.01, 1, 0.01)
+        self.data_utils = DataUtils(self)
+        self.dataset = Dataset(self)
 
         # Augmentation settings
-        self.rot_angle = 5.0
+        self.rotation = 5
 
         # Data generator settings
         self.data_random_seed = 2018
-        self.balance = False
-        self.folds = 1
+        self.folds = 5
         self.train_split = 0.8
         self.test_split = 0.1  # useful only in 1-fold setting
-        self.leave_out = False  # allows to choose for test data with unique values of 'self.leave_out_param'
+        self.leave_out = True  # allows to choose for test data with unique values of 'self.leave_out_param'
         self.leave_out_param = 'patient'
         self.leave_out_values = [1]  # useful only in 1-fold setting
         self.generator = Generator(self)
@@ -75,9 +60,6 @@ class MsSegmentationSettings(object):
         self.val_data_file_name = "val_data.json"
         self.test_data_file_name = "test_data.json"
 
-        self.training_logs = ""
-        self.output_segmentations = ""
-
         # Model architecture settings
         self.model = Model(self)
         self.kernel_regularizer = l2(0.0001)
@@ -86,10 +68,12 @@ class MsSegmentationSettings(object):
         # Model compilation settings
         self.input_shape = (216, 180, 4)
         self.losses = KerasLossFunctions(self)
-        self.metric = KerasMetrics(self)
+        self.keras_metrics_container = KerasMetrics(self)
         self.optimizer = Adam(lr=0.0001)
         self.loss = self.losses.dice_coef_loss()
-        self.metrics = [self.metric.dice_coef, self.metric.recall, self.metric.precision]
+        self.keras_metrics = [self.keras_metrics_container.dice_coef,
+                              self.keras_metrics_container.recall,
+                              self.keras_metrics_container.precision]
 
         # Model training settings
         self.load_weights = False
@@ -97,19 +81,19 @@ class MsSegmentationSettings(object):
         self.load_weights_path = os.path.join(self.simulation_folder, self.load_weights_name)
         self.train_model = True
         self.epochs = 7000
-        self.steps_per_epoch = 50
+        self.steps_per_epoch = 32
         self.batch_size = 32
-        self.val_steps = 15
+        self.val_steps = 16
 
         # Callbacks settings
         self.callbacks_container = KerasCallbacks(self)
-        self.save_weights_name = "weights_{epoch:03d}.h5"
+        self.save_weights_name = "best_weights.h5"  # "weights_{epoch:03d}.h5"
         self.save_weights_path = os.path.join(self.simulation_folder, self.save_weights_name)
         self.save_best_only = True
         self.training_log_name = "metrics.log"
         self.training_log_path = os.path.join(self.simulation_folder, self.training_log_name)
         self.monitor = "val_loss"
-        self.early_stopping_patience = 50
+        self.early_stopping_patience = 100
         self.reduce_lr_factor = 0.9
         self.reduce_lr_patience = 10
         self.reduce_lr_min_lr = 0.00001
@@ -130,7 +114,4 @@ class MsSegmentationSettings(object):
         self.plot_metrics = ["loss", "dice_coef", "recall", "precision"]
 
         # Metrics settings
-        self.small_objects = 18  # elements of less size removed during postprocessing
-        self.smallest_lesion_size = 18  # elements of less size removed before LTPR / FTPR calculations
-        self.min_overlap = 1  # if overlap between prediction and gt is more than 'min_overlap' it's a true prediction
-        self.epsilon = 1e-6
+        self.metrics_container = Metrics(self)
