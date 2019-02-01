@@ -59,13 +59,14 @@ for fold in range(settings.folds):
                               settings.callbacks_container.early_stopping(),
                               settings.callbacks_container.reduce_lr_onplateu()]
         model.initialize()
+        model.compile()
         model.fit(fold=fold)
 
-    # Visualize training metrics
     if not settings.train_model:
+
+        # Visualize training metrics
         plots.training_plot()
 
-    if not settings.train_model:
         # Calculate predictions on training data
         train_predictions = model.predict(run_mode=RunMode.TRAINING, fold=fold)
         train_data = generator.get_data(run_mode=RunMode.TRAINING, fold=fold)
@@ -75,13 +76,24 @@ for fold in range(settings.folds):
         test_evaluations = model.evaluate(run_mode=RunMode.TEST, fold=fold)
         test_data = generator.get_data(run_mode=RunMode.TEST, fold=fold)
 
+        # Apply postprocessing
+        test_predictions = dataset.apply_postprocessing(test_predictions, test_data,
+                                                        train_predictions, train_data,
+                                                        {"train_info": generator.train_info[fold],
+                                                         "val_info": generator.val_info[fold],
+                                                         "test_info": generator.test_info[fold]})
+
         # Calculate metrics
-        # dataset.calculate_fold_metrics(test_predictions, test_data, test_evaluations, train_predictions, train_data)
+        dataset.calculate_fold_metrics(test_predictions, test_data, test_evaluations, train_predictions, train_data,
+                                       {"train_info": generator.train_info[fold],
+                                        "val_info": generator.val_info[fold],
+                                        "test_info": generator.test_info[fold]})
 
         # Save tested data
-        # dataset.save_tested_data(generator.test_info[fold])
+        dataset.save_tested_data(generator.test_info[fold])
 
 # Log metrics
-dataset.log_metrics()
+if not settings.train_model:
+    dataset.log_metrics()
 
 logger.end()
