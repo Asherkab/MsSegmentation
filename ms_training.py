@@ -1,6 +1,6 @@
 import os
 from Utils.RunMode import RunMode
-from MsSegmentationSettings import MsSegmentationSettings as Settings
+from MsTrainingSettings import MsTrainingSettings as Settings
 
 
 # Initialize settings and get instances of classes
@@ -58,7 +58,7 @@ for fold in range(settings.folds):
                               settings.callbacks_container.csv_logger(),
                               settings.callbacks_container.early_stopping(),
                               settings.callbacks_container.reduce_lr_onplateu()]
-        model.initialize()
+        model.build()
         model.compile()
         model.fit(fold=fold)
 

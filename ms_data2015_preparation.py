@@ -2,29 +2,32 @@ import os
 import numpy as np
 import pandas as pd
 
-from MsDataPreparationSettings import MsDataPreparationSettings as Settings
+from MsData2015PreparationSettings import MsDataPreparationSettings as Settings
 
 # Initialize settings and utils
 settings = Settings()
 utils = settings.utils
 
 # Get paths of data and masks
-mask_paths = utils.get_mask_paths()
-data_paths = utils.get_data_paths()
+mask_paths = utils.get_mask2015_paths()
+data_paths = utils.get_data2015_paths()
 
 # Iterate over cases
 ms_info = pd.DataFrame()  # create empty MS info table
-for patient_idx in range(len(data_paths)):
+for idx in range(len(data_paths)):
 
     # Load different modalities and experts masks for case
-    data = [np.load(path) for path in data_paths[patient_idx]]
-    masks = [np.load(path) for path in mask_paths[patient_idx]]
+    data = [np.load(path) for path in data_paths[idx]]
+    masks = [np.load(path) for path in mask_paths[idx]]
+
+    dilated_masks = [utils.dilate_mask(mask, data[0]) for mask in masks]
+    masks = masks + dilated_masks
 
     # Iterate over slices
     for slice_idx in range(len(data[0])):  # axial
 
         # Get patient and time from data path
-        name = os.path.basename(data_paths[patient_idx][0])
+        name = os.path.basename(data_paths[idx][0])
         patient = int(name[6:8])
         time = int(name[13:15])
 
@@ -32,7 +35,7 @@ for patient_idx in range(len(data_paths)):
         data_sample = [modality_volume[slice_idx, :, :] for modality_volume in data]
         data_sample = np.moveaxis(np.array(data_sample), 0, -1)
 
-        mask_sample = [expert_mask[slice_idx, :, :] for expert_mask in masks]
+        mask_sample = [mask[slice_idx, :, :] for mask in masks]
         mask_sample = np.moveaxis(np.array(mask_sample), 0, -1)
 
         # Save data and mask sample
@@ -49,6 +52,8 @@ for patient_idx in range(len(data_paths)):
         ms_info_row["slice"] = slice_idx
         ms_info_row["expert_1"] = np.sum(mask_sample[:, :, 0])
         ms_info_row["expert_2"] = np.sum(mask_sample[:, :, 1])
+        ms_info_row["expert_1_dilated"] = np.sum(mask_sample[:, :, 2])
+        ms_info_row["expert_2_dilated"] = np.sum(mask_sample[:, :, 3])
         ms_info_row["intersection"] = np.sum(np.logical_and(mask_sample[:, :, 0], mask_sample[:, :, 1]))
         ms_info_row["union"] = np.sum(np.logical_or(mask_sample[:, :, 0], mask_sample[:, :, 1]))
 

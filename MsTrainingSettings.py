@@ -11,11 +11,11 @@ from Metrics.Metrics import Metrics
 from Metrics.KerasMetrics import KerasMetrics
 from KerasCallbacks.KerasCallbacks import KerasCallbacks
 from KerasModels.CenModel import CenModel as Model
-from MsSegmentationMaskTypes import MsSegmentationMaskTypes as MaskTypes
-from MsSegmentationDataset import MsSegmentationDataset as Dataset
+from MsMaskTypes import MsMaskTypes as MaskTypes
+from MsDataset import MsDataset as Dataset
 
 
-class MsSegmentationSettings(object):
+class MsTrainingSettings(object):
 
     def __init__(self):
 
@@ -80,7 +80,7 @@ class MsSegmentationSettings(object):
         self.load_weights_name = "best_weights.h5"
         self.load_weights_path = os.path.join(self.simulation_folder, self.load_weights_name)
         self.train_model = True
-        self.epochs = 7000
+        self.epochs = 1500
         self.steps_per_epoch = 32
         self.batch_size = 32
         self.val_steps = 16
@@ -93,7 +93,7 @@ class MsSegmentationSettings(object):
         self.training_log_name = "metrics.log"
         self.training_log_path = os.path.join(self.simulation_folder, self.training_log_name)
         self.monitor = "val_loss"
-        self.early_stopping_patience = 100
+        self.early_stopping_patience = 1500
         self.reduce_lr_factor = 0.9
         self.reduce_lr_patience = 10
         self.reduce_lr_min_lr = 0.00001
