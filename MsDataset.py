@@ -1,12 +1,12 @@
 import numpy as np
 from DatasetUtils.BaseDataset import BaseDataset
-from MsSegmentationMaskTypes import MsSegmentationMaskTypes as MaskTypes
+from MsMaskTypes import MsMaskTypes as MaskTypes
 
 
-class MsSegmentationDataset(BaseDataset):
+class MsDataset(BaseDataset):
 
     def __init__(self, settings):
-        super(MsSegmentationDataset, self).__init__(settings)
+        super(MsDataset, self).__init__(settings)
 
         self.expert_1_dice_list = []
         self.expert_1_precision_list = []
@@ -42,6 +42,10 @@ class MsSegmentationDataset(BaseDataset):
             mask = mask[:, :, 0]
         elif self.settings.mask_type == MaskTypes.EXPERT_2:
             mask = mask[:, :, 1]
+        elif self.settings.mask_type == MaskTypes.EXPERT_1_DILATED:
+            mask = mask[:, :, 2]
+        elif self.settings.mask_type == MaskTypes.EXPERT_2_DILATED:
+            mask = mask[:, :, 3]
         elif self.settings.mask_type == MaskTypes.INTERSECTION:
             mask = np.logical_and(mask[:, :, 0], mask[:, :, 1])
         elif self.settings.mask_type == MaskTypes.UNION:
