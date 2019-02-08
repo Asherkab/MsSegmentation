@@ -20,7 +20,7 @@ class MsTrainingSettings(object):
     def __init__(self):
 
         # Dataset settings
-        self.data_folder = "../../Datasets/MS_Longitudinal_ISBI2015/training/axial_slices/"
+        self.data_folder = "../../Datasets/MS_Longitudinal_ISBI2015/training/axial_slices_dilated/"
         self.data_definition_file_name = "ms_info.json"
         self.data_definition_file_path = os.path.join(self.data_folder, self.data_definition_file_name)
 
@@ -32,10 +32,11 @@ class MsTrainingSettings(object):
         self.crop_offset = [[0, 1], [0, 1], [0, 0]]
 
         # Mask preprocessing settings
-        self.mask_type = MaskTypes.EXPERT_1
+        self.training_mask_type = MaskTypes.EXPERT_1
 
         # Data postprocessing settings
-        self.opt_thr = 0.5
+        self.find_thr_mask_type = MaskTypes.EXPERT_1
+        self.opt_thr = 0.01
         self.find_opt_thr = True
         self.thrs_to_check = np.arange(0.01, 1, 0.01)
         self.data_utils = DataUtils(self)
@@ -55,7 +56,7 @@ class MsTrainingSettings(object):
         self.generator = Generator(self)
 
         # Output settings
-        self.simulation_folder = "../../Simulations/MsSegmentation/test"
+        self.simulation_folder = "../../Simulations/MsSegmentation/expert_1_no_reduce_lr"
         self.train_data_file_name = "train_data.json"
         self.val_data_file_name = "val_data.json"
         self.test_data_file_name = "test_data.json"

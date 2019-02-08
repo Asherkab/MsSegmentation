@@ -10,7 +10,7 @@ class MsDataPreparationSettings(object):
         # Dataset settings
         self.masks = "../../Datasets/MS_Longitudinal_ISBI2015/training/masks_A/"
         self.data = "../../Datasets/MS_Longitudinal_ISBI2015/training/matched_A/"
-        self.data_folder = "../../Datasets/MS_Longitudinal_ISBI2015/training/axial_slices_/"
+        self.data_folder = "../../Datasets/MS_Longitudinal_ISBI2015/training/axial_slices_dilated/"
         self.data_definition_file_name = "ms_info.json"
         self.data_definition_file_path = os.path.join(self.data_folder, self.data_definition_file_name)
 
@@ -22,6 +22,7 @@ class MsDataPreparationSettings(object):
         self.modalities = [0, 1, 2, 3]
 
         # Utils settings
+        self.connected_to_original_mask = False
         self.dilation_thr = 0.2
         self.initial_data_thr = 0.99
         self.dilation_iterations = 6

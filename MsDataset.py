@@ -38,21 +38,20 @@ class MsDataset(BaseDataset):
         if self.settings.crop:
             mask = self.settings.data_utils.crop_center(mask)
 
-        if self.settings.mask_type == MaskTypes.EXPERT_1:
+        if self.settings.training_mask_type == MaskTypes.EXPERT_1:
             mask = mask[:, :, 0]
-        elif self.settings.mask_type == MaskTypes.EXPERT_2:
+        elif self.settings.training_mask_type == MaskTypes.EXPERT_2:
             mask = mask[:, :, 1]
-        elif self.settings.mask_type == MaskTypes.EXPERT_1_DILATED:
+        elif self.settings.training_mask_type == MaskTypes.EXPERT_1_DILATED:
             mask = mask[:, :, 2]
-        elif self.settings.mask_type == MaskTypes.EXPERT_2_DILATED:
+        elif self.settings.training_mask_type == MaskTypes.EXPERT_2_DILATED:
             mask = mask[:, :, 3]
-        elif self.settings.mask_type == MaskTypes.INTERSECTION:
+        elif self.settings.training_mask_type == MaskTypes.INTERSECTION:
             mask = np.logical_and(mask[:, :, 0], mask[:, :, 1])
-        elif self.settings.mask_type == MaskTypes.UNION:
+        elif self.settings.training_mask_type == MaskTypes.UNION:
             mask = np.logical_or(mask[:, :, 0], mask[:, :, 1])
 
         mask = np.expand_dims(mask, 2)
-        mask = mask.astype(np.byte)
 
         return mask
 
@@ -65,19 +64,34 @@ class MsDataset(BaseDataset):
 
         # find optimal threshold or use predefined one
         if self.settings.find_opt_thr:
-            opt_thr = self.settings.metrics_container.get_opt_thr_dice(np.array(train_predictions),
-                                                                       np.array(train_data[1]),
-                                                                       self.settings.thrs_to_check)
+
+            self.settings.training_mask_type = self.settings.find_thr_mask_type
+
+            find_thr_train_masks = []
+            for _, info_row in fold_info["train_info"].iterrows():
+                mask = self._get_label(info_row)
+                find_thr_train_masks.append(mask)
+            find_thr_train_masks = np.array(find_thr_train_masks)
+
+            opt_thr = self.settings.metrics_container.get_opt_thr_dice(y_pred=np.array(train_predictions),
+                                                                       y_true=find_thr_train_masks,
+                                                                       thrs=self.settings.thrs_to_check)
+
+            find_thr_test_masks = []
+            for _, info_row in fold_info["test_info"].iterrows():
+                mask = self._get_label(info_row)
+                find_thr_test_masks.append(mask)
+            find_thr_test_masks = np.array(find_thr_test_masks)
+            test_opt_thr = self.settings.metrics_container.get_opt_thr_dice(y_pred=np.array(test_predictions),
+                                                                            y_true=find_thr_test_masks,
+                                                                            thrs=self.settings.thrs_to_check)
+
+            self.settings.logger.log("\nOptimal threshold that maximizes DICE of:")
+            self.settings.logger.log(" - training data = {0}".format(opt_thr))
+            self.settings.logger.log(" - test data = {0}".format(test_opt_thr))
+
         else:
             opt_thr = self.settings.opt_thr
-
-        test_opt_thr = self.settings.metrics_container.get_opt_thr_dice(np.array(test_predictions),
-                                                                        np.array(test_data[1]),
-                                                                        self.settings.thrs_to_check)
-
-        self.settings.logger.log("\nOptimal threshold that maximizes DICE of:")
-        self.settings.logger.log(" - training data = {0}".format(opt_thr))
-        self.settings.logger.log(" - test data = {0}".format(test_opt_thr))
 
         thresholded_test_predictions = np.greater(test_predictions, opt_thr)  # apply threshold on test data
         thresholded_test_predictions = thresholded_test_predictions.astype(np.byte)
@@ -93,7 +107,7 @@ class MsDataset(BaseDataset):
                                fold_info):
 
         expert_1_test_masks = []
-        self.settings.mask_type = MaskTypes.EXPERT_1
+        self.settings.training_mask_type = MaskTypes.EXPERT_1
         for _, info_row in fold_info["test_info"].iterrows():
             mask = self._get_label(info_row)
             expert_1_test_masks.append(mask)
@@ -112,7 +126,7 @@ class MsDataset(BaseDataset):
         self.settings.logger.log("- recall = " + str(recall))
 
         expert_2_test_masks = []
-        self.settings.mask_type = MaskTypes.EXPERT_2
+        self.settings.training_mask_type = MaskTypes.EXPERT_2
         for _, info_row in fold_info["test_info"].iterrows():
             mask = self._get_label(info_row)
             expert_2_test_masks.append(mask)
@@ -143,9 +157,9 @@ class MsDataset(BaseDataset):
         self.settings.logger.log(" - precision std: " + str(np.std(self.expert_1_precision_list)))
 
         self.settings.logger.log("\nMetrics that are measured relative to expert 2 masks:")
-        self.settings.logger.log(" - dice mean" + str(np.mean(self.expert_2_dice_list)))
+        self.settings.logger.log(" - dice mean: " + str(np.mean(self.expert_2_dice_list)))
         self.settings.logger.log(" - dice std: " + str(np.std(self.expert_2_dice_list)))
-        self.settings.logger.log(" - recall mean" + str(np.mean(self.expert_2_recall_list)))
+        self.settings.logger.log(" - recall mean: " + str(np.mean(self.expert_2_recall_list)))
         self.settings.logger.log(" - recall std: " + str(np.std(self.expert_2_recall_list)))
-        self.settings.logger.log(" - precision mean" + str(np.mean(self.expert_2_precision_list)))
+        self.settings.logger.log(" - precision mean: " + str(np.mean(self.expert_2_precision_list)))
         self.settings.logger.log(" - precision std: " + str(np.std(self.expert_2_precision_list)))
