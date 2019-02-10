@@ -1,4 +1,5 @@
 import os
+import abc
 import numpy as np
 from keras.optimizers import Adam
 from keras.regularizers import l2
@@ -12,35 +13,11 @@ from Metrics.KerasMetrics import KerasMetrics
 from KerasCallbacks.KerasCallbacks import KerasCallbacks
 from KerasModels.CenModel import CenModel as Model
 from MsMaskTypes import MsMaskTypes as MaskTypes
-from MsDataset import MsDataset as Dataset
 
 
-class MsTrainingSettings(object):
+class MsBaseTrainingSettings(abc.ABC):
 
     def __init__(self):
-
-        # Dataset settings
-        self.data_folder = "../../Datasets/MS_Longitudinal_ISBI2015/training/axial_slices_dilated/"
-        self.data_definition_file_name = "ms_info.json"
-        self.data_definition_file_path = os.path.join(self.data_folder, self.data_definition_file_name)
-
-        # Data preprocessing settings
-        self.filters = {"expert_1": {"min_open": 1}}
-        self.preload_data = True
-        self.preload_labels = True
-        self.crop = True
-        self.crop_offset = [[0, 1], [0, 1], [0, 0]]
-
-        # Mask preprocessing settings
-        self.training_mask_type = MaskTypes.EXPERT_1
-
-        # Data postprocessing settings
-        self.find_thr_mask_type = MaskTypes.EXPERT_1
-        self.opt_thr = 0.01
-        self.find_opt_thr = True
-        self.thrs_to_check = np.arange(0.01, 1, 0.01)
-        self.data_utils = DataUtils(self)
-        self.dataset = Dataset(self)
 
         # Augmentation settings
         self.rotation = 5
@@ -55,8 +32,24 @@ class MsTrainingSettings(object):
         self.leave_out_values = [1]  # useful only in 1-fold setting
         self.generator = Generator(self)
 
+        # Data preprocessing settings
+        self.preload_data = True
+        self.preload_labels = True
+        self.crop = True
+        self.crop_offset = [[0, 1], [0, 1], [0, 0]]
+
+        # Mask preprocessing settings
+        self.training_mask_type = MaskTypes.EXPERT_1
+
+        # Data postprocessing settings
+        self.find_thr_mask_type = MaskTypes.EXPERT_1
+        self.opt_thr = 0.01
+        self.find_opt_thr = True
+        self.thrs_to_check = np.arange(0.01, 1, 0.01)
+        self.data_utils = DataUtils(self)
+
         # Output settings
-        self.simulation_folder = "../../Simulations/MsSegmentation/expert_1_no_reduce_lr"
+        self.simulation_folder = "../../Simulations/MsSegmentation/test"
         self.train_data_file_name = "train_data.json"
         self.val_data_file_name = "val_data.json"
         self.test_data_file_name = "test_data.json"
@@ -67,7 +60,6 @@ class MsTrainingSettings(object):
         self.kernel_initializer = "glorot_normal"
 
         # Model compilation settings
-        self.input_shape = (216, 180, 4)
         self.losses = KerasLossFunctions(self)
         self.keras_metrics_container = KerasMetrics(self)
         self.optimizer = Adam(lr=0.0001)
@@ -81,10 +73,6 @@ class MsTrainingSettings(object):
         self.load_weights_name = "best_weights.h5"
         self.load_weights_path = os.path.join(self.simulation_folder, self.load_weights_name)
         self.train_model = True
-        self.epochs = 1500
-        self.steps_per_epoch = 32
-        self.batch_size = 32
-        self.val_steps = 16
 
         # Callbacks settings
         self.callbacks_container = KerasCallbacks(self)

@@ -1,6 +1,6 @@
 import os
 from Utils.RunMode import RunMode
-from MsTrainingSettings import MsTrainingSettings as Settings
+from Ms2016TrainingSettings import Ms2016TrainingSettings as Settings
 
 
 # Initialize settings and get instances of classes
@@ -85,7 +85,7 @@ for fold in range(settings.folds):
                                                      "test_info": generator.test_info[fold]})
 
     # Calculate metrics
-    dataset.calculate_fold_metrics(test_predictions, test_data, test_evaluations, train_predictions, train_data,
+    dataset.calculate_fold_metrics(test_predictions, test_data, test_evaluations, train_predictions, train_data, fold,
                                    {"train_info": generator.train_info[fold],
                                     "val_info": generator.val_info[fold],
                                     "test_info": generator.test_info[fold]})
