@@ -15,8 +15,10 @@ class Ms2015TrainingSettings(MsBaseTrainingSettings):
 
         # 2015 dataset relative preprocessing settings
         self.filters = {"expert_1": {"min_open": 1}}
+        self.training_mask_type = MaskTypes.EXPERT_1
 
         # 2015 dataset relative postprocessing settings
+        self.find_thr_mask_type = MaskTypes.EXPERT_1
         self.calculate_metrics_mask_types = [MaskTypes.EXPERT_1,
                                              MaskTypes.EXPERT_2]
 

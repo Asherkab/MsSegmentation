@@ -38,11 +38,7 @@ class MsBaseTrainingSettings(abc.ABC):
         self.crop = True
         self.crop_offset = [[0, 1], [0, 1], [0, 0]]
 
-        # Mask preprocessing settings
-        self.training_mask_type = MaskTypes.EXPERT_1
-
         # Data postprocessing settings
-        self.find_thr_mask_type = MaskTypes.EXPERT_1
         self.opt_thr = 0.01
         self.find_opt_thr = True
         self.thrs_to_check = np.arange(0.01, 1, 0.01)

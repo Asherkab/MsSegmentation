@@ -14,9 +14,11 @@ class Ms2016TrainingSettings(MsBaseTrainingSettings):
         self.data_definition_file_path = os.path.join(self.data_folder, self.data_definition_file_name)
 
         # 2016 dataset relative preprocessing settings
-        self.filters = {"mask_1": {"min_open": 1}}
+        self.filters = {"mask_0": {"min_open": 1}}
+        self.training_mask_type = MaskTypes.EXPERT_1
 
         # 2016 dataset relative postprocessing settings
+        self.find_thr_mask_type = MaskTypes.EXPERT_1
         self.calculate_metrics_mask_types = [MaskTypes.EXPERT_1,
                                              MaskTypes.EXPERT_2,
                                              MaskTypes.EXPERT_3,

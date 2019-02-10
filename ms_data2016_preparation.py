@@ -10,8 +10,6 @@ logger = settings.logger
 data_utils = settings.data_utils
 ms_utils = settings.ms_utils
 
-logger.start(settings.output_logs_path)  # initialize logger
-
 # Get paths of data and masks
 mask_paths = ms_utils.get_mask2016_paths()
 data_paths = ms_utils.get_data2016_paths()
@@ -59,10 +57,12 @@ for patient_idx in range(len(data_paths)):
                 dice_matrix[row, col] = settings.metrics_container.dice_coef(masks[row], masks[col])
                 agreement_matrix[row, col] = settings.metrics_container.precision(masks[row], masks[col])
 
+        logger.start(settings.output_logs_path)  # initialize logger
         logger.log("\nDice Matrix:")
         logger.log(dice_matrix)
         logger.log("\nAgreement Matrix:")
         logger.log(agreement_matrix)
+        logger.end()  # close logger
 
     # Create dilated masks
     dilated_masks = [ms_utils.dilate_mask(mask, data[1]) for mask in masks]
@@ -114,5 +114,4 @@ for patient_idx in range(len(data_paths)):
         ms_info = ms_info.append(ms_info_row, ignore_index=True)  # add sample info to table
 
 ms_info.to_json(settings.data_definition_file_path)  # save MS info table
-logger.end()  # close logger
 
