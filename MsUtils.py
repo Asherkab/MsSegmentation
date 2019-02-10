@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import nibabel as nib
 from skimage import morphology
 from scipy import ndimage as nd
 
@@ -78,6 +79,17 @@ class MsUtils(object):
             paths_data.append(paths)
 
         return paths_data
+
+    @staticmethod
+    def load_and_rotate_nifti(path):
+        nii = nib.load("".join(path))
+
+        vol = nii.get_data()
+        vol = np.rot90(vol, 2, (0, 1))
+        vol = np.rot90(vol, -1, (0, 2))
+        vol = np.flip(vol, 2)
+
+        return vol
 
     def dilate_mask(self, mask, data):
 
