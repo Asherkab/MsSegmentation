@@ -51,7 +51,6 @@ for fold in range(settings.folds):
     generator.val_info[fold].to_json(os.path.join(fold_simulation_folder, settings.val_data_file_name))
     generator.test_info[fold].to_json(os.path.join(fold_simulation_folder, settings.test_data_file_name))
 
-    # Reinitialize weights and train
     if settings.train_model:
         # Update simulation directories for training
         settings.save_weights_path = os.path.join(fold_simulation_folder, settings.save_weights_name)
@@ -63,37 +62,39 @@ for fold in range(settings.folds):
                               settings.callbacks_container.reduce_lr_onplateu()]
         model.build()
         model.compile()
-        model.fit(fold=fold)
+        model.fit(fold=fold)  # Train model
+    else:
+        # Visualize training metrics
+        plots.training_plot()
 
-    # Visualize training metrics
-    plots.training_plot()
+        # Calculate predictions on training data
+        train_predictions = model.predict(run_mode=RunMode.TRAINING, fold=fold)
+        train_data = generator.get_data(run_mode=RunMode.TRAINING, fold=fold)
 
-    # Calculate predictions on training data
-    train_predictions = model.predict(run_mode=RunMode.TRAINING, fold=fold)
-    train_data = generator.get_data(run_mode=RunMode.TRAINING, fold=fold)
+        # Evaluate model and calculate predictions on test data
+        test_predictions = model.predict(run_mode=RunMode.TEST, fold=fold)
+        test_evaluations = model.evaluate(run_mode=RunMode.TEST, fold=fold)
+        test_data = generator.get_data(run_mode=RunMode.TEST, fold=fold)
 
-    # Evaluate model and calculate predictions on test data
-    test_predictions = model.predict(run_mode=RunMode.TEST, fold=fold)
-    test_evaluations = model.evaluate(run_mode=RunMode.TEST, fold=fold)
-    test_data = generator.get_data(run_mode=RunMode.TEST, fold=fold)
+        # Apply postprocessing
+        test_predictions = dataset.apply_postprocessing(test_predictions, test_data,
+                                                        train_predictions, train_data,
+                                                        {"train_info": generator.train_info[fold],
+                                                        "val_info": generator.val_info[fold],
+                                                        "test_info": generator.test_info[fold]})
 
-    # Apply postprocessing
-    test_predictions = dataset.apply_postprocessing(test_predictions, test_data,
-                                                    train_predictions, train_data,
-                                                    {"train_info": generator.train_info[fold],
-                                                     "val_info": generator.val_info[fold],
-                                                     "test_info": generator.test_info[fold]})
+        # Calculate metrics
+        dataset.calculate_fold_metrics(test_predictions, test_data, test_evaluations, train_predictions, train_data,
+                                       fold,
+                                       {"train_info": generator.train_info[fold],
 
-    # Calculate metrics
-    dataset.calculate_fold_metrics(test_predictions, test_data, test_evaluations, train_predictions, train_data, fold,
-                                   {"train_info": generator.train_info[fold],
-                                    "val_info": generator.val_info[fold],
-                                    "test_info": generator.test_info[fold]})
+                                        "val_info": generator.val_info[fold],
+                                        "test_info": generator.test_info[fold]})
 
-    # Save tested data
-    dataset.save_tested_data(generator.test_info[fold])
+        # Save tested data
+        dataset.save_tested_data(generator.test_info[fold])
 
-# Log metrics
-dataset.log_metrics()
+if not settings.train_model:
+    dataset.log_metrics()  # Log metrics
 
 logger.end()
