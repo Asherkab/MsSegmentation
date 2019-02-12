@@ -31,14 +31,16 @@ for patient_idx in range(len(data_paths)):
     data = normalized_data
 
     masks = [ms_utils.load_and_rotate_nifti(path) for path in mask_paths[patient_idx]]  # load all experts masks
-    masks = [data_utils.resize(vol, interpolation_order=0) for vol in masks]  # resize masks volumes
 
     # Flip masks that are in different orientation
-    masks[1] = np.flip(masks[1], axis=1)
-    masks[1] = np.flip(masks[1], axis=2)
+    if patient_idx == 0:
+        masks[1] = np.flip(masks[1], axis=1)
+        masks[1] = np.flip(masks[1], axis=2)
 
-    masks[3] = np.flip(masks[3], axis=1)
-    masks[3] = np.flip(masks[3], axis=2)
+        masks[3] = np.flip(masks[3], axis=1)
+        masks[3] = np.flip(masks[3], axis=2)
+
+    masks = [data_utils.resize(vol, interpolation_order=0) for vol in masks]  # resize masks volumes
 
     # Set MS lesions label to be 1
     binary_masks = []
@@ -78,19 +80,9 @@ for patient_idx in range(len(data_paths)):
         mask_sample = [mask[slice_idx, :, :] for mask in masks]
         mask_sample = np.moveaxis(np.array(mask_sample), 0, -1)
 
-        # Plot examples of masks
         if settings.plot_examples and 100 < slice_idx < 120:
-
-            settings.plots.overlay_plot(data_sample[:, :, 1], overlay_1=mask_sample[:, :, 0],
-                                        name="_single_mask{0}_{1}".format(0, slice_idx))
-
-            for mask_idx in range(1, settings.experts_num):
-                settings.plots.overlay_plot(data_sample[:, :, 1], overlay_1=mask_sample[:, :, mask_idx],
-                                            name="_single_mask{0}_{1}".format(mask_idx, slice_idx))
-
-                settings.plots.overlay_plot(data_sample[:, :, 1], overlay_1=mask_sample[:, :, 0],
-                                            overlay_2=mask_sample[:, :, mask_idx],
-                                            name="_comparison{0}_{1}".format(mask_idx, slice_idx))
+            settings.plots.overlay_plot(data_sample[:, :, 1], overlay_1=mask_sample[:, :, 0], overlay_2=mask_sample[:, :, 1],
+                                        name="{0}_{1}".format(patient_idx, slice_idx), opacity=0.2)
 
         # Save data and mask sample
         data_name = "data_p{0}_s{2}.npy".format(patient_idx, 0, slice_idx)

@@ -20,17 +20,17 @@ class MsDataPreparationSettings(object):
         self.cases = ["01016SACH",
                       "01038PAGU",
                       "01039VITE",
+                      "01040VANE",
+                      "01042GULE",
                       "07001MOEL",
                       "07003SATH",
                       "07010NABO",
+                      "07040DORE",
+                      "07043SEME",
                       "08002CHJE",
                       "08027SYBR",
                       "08029IVDI",
-                      "01040VANE",
-                      "07040DORE",
                       "08031SEVE",
-                      "01042GULE",
-                      "07043SEME",
                       "08037ROGU"]
         self.modalities = [0, 1, 2, 3, 4]
         self.experts_num = 7
