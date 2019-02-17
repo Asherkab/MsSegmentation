@@ -56,7 +56,7 @@ class MsUtils(object):
         template = list("ManualSegmentation_X.nii.gz")
         for case in self.settings.cases:
             paths_for_case = []
-            for expert in range(1, self.settings.experts_num + 1):
+            for expert in [1, 3, 5, 6, 7]:
                 template[19] = str(expert)
                 paths_for_case.append(os.path.join(self.settings.masks, case, "".join(template)))
 
@@ -90,6 +90,15 @@ class MsUtils(object):
         vol = np.flip(vol, 2)
 
         return vol
+
+    @staticmethod
+    def rotate_and_save_nifti(path, numpy_vol):
+        numpy_vol = np.flip(numpy_vol, 2)
+        numpy_vol = np.rot90(numpy_vol, 1, (0, 2))
+        numpy_vol = np.rot90(numpy_vol, -2, (0, 1))
+
+        nii_vol = nib.Nifti1Image(numpy_vol, np.eye(4))
+        nib.save(nii_vol, path)
 
     def dilate_mask(self, mask, data):
 
