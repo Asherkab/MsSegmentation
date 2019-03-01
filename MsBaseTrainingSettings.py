@@ -12,7 +12,6 @@ from Metrics.Metrics import Metrics
 from Metrics.KerasMetrics import KerasMetrics
 from KerasCallbacks.KerasCallbacks import KerasCallbacks
 from KerasModels.CenModel import CenModel as Model
-from MsMaskTypes import MsMaskTypes as MaskTypes
 
 
 class MsBaseTrainingSettings(abc.ABC):
@@ -24,19 +23,19 @@ class MsBaseTrainingSettings(abc.ABC):
 
         # Data generator settings
         self.data_random_seed = 2018
-        self.folds = 5
+        self.folds = 1
         self.train_split = 0.8
-        self.test_split = 0.1  # useful only in 1-fold setting
+        self.test_split = 0.1  # useful only in 1-fold setting without leave out setting
         self.leave_out = True  # allows to choose for test data with unique values of 'self.leave_out_param'
         self.leave_out_param = 'patient'
-        self.leave_out_values = [1]  # useful only in 1-fold setting
+        self.leave_out_values = [0, 5, 10]
         self.generator = Generator(self)
 
         # Data preprocessing settings
         self.preload_data = True
         self.preload_labels = True
         self.crop = True
-        self.crop_offset = [[0, 1], [0, 1], [0, 0]]
+        self.crop_offset = [[6, 7], [6, 7], [0, 0]]
 
         # Data postprocessing settings
         self.opt_thr = 0.01
@@ -68,7 +67,7 @@ class MsBaseTrainingSettings(abc.ABC):
         self.load_weights = False
         self.load_weights_name = "best_weights.h5"
         self.load_weights_path = os.path.join(self.simulation_folder, self.load_weights_name)
-        self.train_model = True
+        self.train_model = False
 
         # Callbacks settings
         self.callbacks_container = KerasCallbacks(self)
@@ -78,9 +77,9 @@ class MsBaseTrainingSettings(abc.ABC):
         self.training_log_name = "metrics.log"
         self.training_log_path = os.path.join(self.simulation_folder, self.training_log_name)
         self.monitor = "val_loss"
-        self.early_stopping_patience = 1500
+        self.early_stopping_patience = 500
         self.reduce_lr_factor = 0.9
-        self.reduce_lr_patience = 10
+        self.reduce_lr_patience = 20
         self.reduce_lr_min_lr = 0.00001
         self.callbacks = [self.callbacks_container.checkpoint(),
                           self.callbacks_container.csv_logger(),
