@@ -55,8 +55,9 @@ class MsUtils(object):
         paths_masks = []
         template = list("ManualSegmentation_X.nii.gz")
         for case in self.settings.cases:
-            paths_for_case = []
-            for expert in [1, 3, 5, 6, 7]:
+            paths_for_case = list()
+            paths_for_case.append(os.path.join(self.settings.masks, case, "Consensus.nii.gz"))
+            for expert in [1, 2, 3, 4, 5, 6, 7]:
                 template[19] = str(expert)
                 paths_for_case.append(os.path.join(self.settings.masks, case, "".join(template)))
 

@@ -14,33 +14,27 @@ ms_utils = settings.ms_utils
 mask_paths = ms_utils.get_mask2016_paths()
 data_paths = ms_utils.get_data2016_paths()
 
+logger.start(settings.output_logs_path)  # initialize logger
+
 # Iterate over cases
 ms_info = pd.DataFrame()  # create empty MS info table
 for patient_idx in range(len(data_paths)):
 
     data = [ms_utils.load_and_rotate_nifti(path) for path in data_paths[patient_idx]]  # load all data modalities
-    data = [data_utils.resize(vol, interpolation_order=1) for vol in data]  # resize data volumes
 
     # Normalize data
     normalized_data = []
-    for mod in data:
-        settings.min_clip_value = np.min(mod)
-        settings.max_clip_value = np.max(mod)
+    for mod_idx, mod in enumerate(data):
+        flatten_mod = mod.flatten()
+        flatten_mod.sort()
+        one_percent_idx = int(flatten_mod.shape[0] / 1000)
+        settings.min_clip_value = flatten_mod[one_percent_idx]
+        settings.max_clip_value = flatten_mod[-one_percent_idx]
         normalized_mod = data_utils.clip_and_normalize(mod)
         normalized_data.append(normalized_mod)
     data = normalized_data
 
     masks = [ms_utils.load_and_rotate_nifti(path) for path in mask_paths[patient_idx]]  # load all experts masks
-
-    # Flip masks that are in different orientation
-    if patient_idx == 0:
-        masks[1] = np.flip(masks[1], axis=1)
-        masks[1] = np.flip(masks[1], axis=2)
-
-        masks[3] = np.flip(masks[3], axis=1)
-        masks[3] = np.flip(masks[3], axis=2)
-
-    masks = [data_utils.resize(vol, interpolation_order=0) for vol in masks]  # resize masks volumes
 
     # Set MS lesions label to be 1
     binary_masks = []
@@ -49,6 +43,13 @@ for patient_idx in range(len(data_paths)):
         binary_mask[mask > 0] = 1
         binary_masks.append(binary_mask)
     masks = binary_masks
+
+    # Create intersection mask
+    intersection_mask = np.logical_and(masks[1], masks[2])
+    for mask_idx in range(3, len(masks)):
+        intersection_mask = np.logical_and(intersection_mask, masks[mask_idx])
+    intersection_mask = intersection_mask.astype(np.byte)
+    masks = masks + [intersection_mask]
 
     # Calculate inter-rater metrics
     if settings.calculate_inter_rater_metrics:
@@ -59,12 +60,11 @@ for patient_idx in range(len(data_paths)):
                 dice_matrix[row, col] = settings.metrics_container.dice_coef(masks[row], masks[col])
                 agreement_matrix[row, col] = settings.metrics_container.precision(masks[row], masks[col])
 
-        logger.start(settings.output_logs_path)  # initialize logger
+        logger.log("\n\nPatient {0}".format(patient_idx))
         logger.log("\nDice Matrix:")
         logger.log(dice_matrix)
         logger.log("\nAgreement Matrix:")
         logger.log(agreement_matrix)
-        logger.end()  # close logger
 
     # Create dilated masks
     dilated_masks = [ms_utils.dilate_mask(mask, data[1]) for mask in masks]
@@ -74,7 +74,7 @@ for patient_idx in range(len(data_paths)):
     for slice_idx in range(data[0].shape[0]):  # axial
 
         # Create data and mask sample
-        data_sample = [modality_volume[slice_idx, :, :] for modality_volume in normalized_data]
+        data_sample = [modality_volume[slice_idx, :, :] for modality_volume in data]
         data_sample = np.moveaxis(np.array(data_sample), 0, -1)
 
         mask_sample = [mask[slice_idx, :, :] for mask in masks]
@@ -106,4 +106,4 @@ for patient_idx in range(len(data_paths)):
         ms_info = ms_info.append(ms_info_row, ignore_index=True)  # add sample info to table
 
 ms_info.to_json(settings.data_definition_file_path)  # save MS info table
-
+logger.end()  # close logger
