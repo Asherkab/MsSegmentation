@@ -1,4 +1,5 @@
 import os
+import itertools
 import numpy as np
 import nibabel as nib
 from skimage import morphology
@@ -106,7 +107,9 @@ class MsUtils(object):
         dilation_thr = self.settings.dilation_thr
         data_thr = self.settings.initial_data_thr
         mask_constructed = False
+
         mask_dilated = nd.binary_dilation(mask, iterations=self.settings.dilation_iterations)
+
         while not mask_constructed:
             mask_candidates = data > data_thr
             mask_dilated_cur = mask_dilated - mask
@@ -124,9 +127,238 @@ class MsUtils(object):
             ratio = np.sum(mask_dilated_cur) / np.sum(mask)
             if ratio < dilation_thr:
                 data_thr = data_thr - 0.01
+                print(data_thr)
             else:
                 mask_dilated = mask_dilated_cur
                 mask_constructed = True
 
         mask = mask + self.settings.soft_label * mask_dilated
+
         return mask
+
+    def staple(self, masks):
+
+        max_iterations = 10
+        min_change = 1e-7
+
+        # Calculate prior and average consensus
+        masks_sum = np.zeros_like(masks[0])
+        for mask in masks:
+            masks_sum += mask
+
+        global_prior = np.sum(masks_sum) / (np.size(masks_sum) * len(masks))
+        consensus = masks_sum / len(masks)
+
+        # Initialize sensitivity and specificity
+        sensitivity = np.ones(shape=(len(masks),))
+        specificity = np.ones(shape=(len(masks),))
+
+        cur_sensitivity = np.ones(shape=(len(masks),))
+        cur_specificity = np.ones(shape=(len(masks),))
+
+        for _ in range(max_iterations):
+
+            # M step
+            for idx, mask in enumerate(masks):
+                cur_sensitivity[idx] = np.sum(mask * consensus) / np.sum(consensus)
+                cur_specificity[idx] = np.sum((1 - mask) * (1 - consensus)) / np.sum(1-consensus)
+
+            # E step
+            alpha = np.ones(shape=masks[0].shape)
+            beta = np.ones(shape=masks[0].shape)
+            for idx, mask in enumerate(masks):
+                alpha[mask == 1] = alpha[mask == 1] * cur_sensitivity[idx]
+                alpha[mask == 0] = alpha[mask == 0] * (1 - cur_sensitivity[idx])
+
+                beta[mask == 1] = beta[mask == 1] * (1 - cur_specificity[idx])
+                beta[mask == 0] = beta[mask == 0] * cur_specificity[idx]
+
+            consensus = (global_prior * alpha) / (global_prior * alpha + (1 - global_prior) * beta)
+
+            # Check convergence
+            convergence = True
+            for idx, _ in enumerate(masks):
+                sensitivity_change = np.abs(cur_sensitivity[idx] - sensitivity[idx])
+                specificity_change = np.abs(cur_specificity[idx] - specificity[idx])
+
+                sensitivity[idx] = cur_sensitivity[idx]
+                specificity[idx] = cur_specificity[idx]
+
+                if sensitivity_change > min_change or specificity_change > min_change:
+                    convergence = False
+
+            if convergence:
+                break
+
+        if self.settings.apply_staple_threshold:
+            consensus[consensus < self.settings.staple_threshold] = 0
+            consensus[consensus >= self.settings.staple_threshold] = 1
+
+        return consensus, sensitivity, specificity
+
+    @staticmethod
+    def soft_staple_iteration(masks, sensitivity, specificity):
+
+        # Calculate prior and average consensus
+        masks_sum = np.zeros_like(masks[0])
+        for mask in masks:
+            masks_sum += mask
+
+        global_prior = np.sum(masks_sum) / (np.size(masks_sum) * len(masks))
+
+        combinations = list(itertools.product([0, 1], repeat=len(masks)))
+        consensus = np.zeros_like(masks[0], dtype=np.float32)
+        for combination_idx, combination in enumerate(combinations):
+
+            combination_masks = []
+            for logit in combination:
+                combination_masks.append(np.ones_like(masks[0]) * logit)
+
+            alpha = np.ones(shape=masks[0].shape)
+            beta = np.ones(shape=masks[0].shape)
+            q = np.ones(shape=masks[0].shape)
+            for combination_mask_idx, combination_mask in enumerate(combination_masks):
+                alpha[combination_mask == 1] = alpha[combination_mask == 1] * sensitivity[combination_mask_idx]
+                alpha[combination_mask == 0] = alpha[combination_mask == 0] * (1 - sensitivity[combination_mask_idx])
+
+                beta[combination_mask == 1] = beta[combination_mask == 1] * (1 - specificity[combination_mask_idx])
+                beta[combination_mask == 0] = beta[combination_mask == 0] * specificity[combination_mask_idx]
+
+                q[combination_mask == 1] = q[combination_mask == 1] * masks[combination_mask_idx][combination_mask == 1]
+                q[combination_mask == 0] = q[combination_mask == 0] * (1 - masks[combination_mask_idx][combination_mask == 0])
+
+            consensus += q * (global_prior * alpha) / (global_prior * alpha + (1 - global_prior) * beta)
+
+        consensus[consensus < 0.001] = 0
+
+        return consensus
+
+    @staticmethod
+    def soft_staple_simplified(masks):
+
+        max_iterations = 30
+        min_change = 1e-7
+
+        # Calculate prior and average consensus
+        masks_sum = np.zeros_like(masks[0])
+        for mask in masks:
+            masks_sum += mask
+
+        global_prior = np.sum(masks_sum) / (np.size(masks_sum) * len(masks))
+
+        consensus = masks_sum / len(masks)
+
+        # Initialize sensitivity and specificity
+        sensitivity = np.ones(shape=(len(masks),))
+        specificity = np.ones(shape=(len(masks),))
+
+        cur_sensitivity = np.ones(shape=(len(masks),))
+        cur_specificity = np.ones(shape=(len(masks),))
+
+        for iteration in range(max_iterations):
+
+            # M step
+            for idx, mask in enumerate(masks):
+                cur_sensitivity[idx] = np.sum(mask * consensus) / np.sum(consensus)
+                cur_specificity[idx] = np.sum((1 - mask) * (1 - consensus)) / np.sum(1 - consensus)
+
+            # E step
+            alpha = np.ones(shape=masks[0].shape)
+            beta = np.ones(shape=masks[0].shape)
+            for mask_idx, mask in enumerate(masks):
+                q_1 = mask
+                q_0 = (1 - mask)
+
+                alpha = alpha * (q_1 * cur_sensitivity[mask_idx] + q_0 * (1 - cur_sensitivity[mask_idx]))
+                beta = beta * (q_1 * (1 - cur_specificity[mask_idx]) + q_0 * cur_specificity[mask_idx])
+
+            consensus = (global_prior * alpha) / (global_prior * alpha + (1 - global_prior) * beta)
+
+            # Check convergence
+            convergence = True
+            for idx, _ in enumerate(masks):
+                sensitivity_change = np.abs(cur_sensitivity[idx] - sensitivity[idx])
+                specificity_change = np.abs(cur_specificity[idx] - specificity[idx])
+
+                sensitivity[idx] = cur_sensitivity[idx]
+                specificity[idx] = cur_specificity[idx]
+
+                if sensitivity_change > min_change or specificity_change > min_change:
+                    convergence = False
+
+            if convergence:
+                break
+
+        return consensus, sensitivity, specificity
+
+    @staticmethod
+    def soft_staple(masks):
+
+        max_iterations = 30
+        min_change = 1e-7
+
+        # Calculate prior and average consensus
+        masks_sum = np.zeros_like(masks[0])
+        for mask in masks:
+            masks_sum += mask
+
+        global_prior = np.sum(masks_sum) / (np.size(masks_sum) * len(masks))
+        consensus = masks_sum / len(masks)
+
+        # Initialize sensitivity and specificity
+        sensitivity = np.ones(shape=(len(masks),))
+        specificity = np.ones(shape=(len(masks),))
+
+        cur_sensitivity = np.ones(shape=(len(masks),))
+        cur_specificity = np.ones(shape=(len(masks),))
+
+        combinations = list(itertools.product([0, 1], repeat=len(masks)))
+
+        for iteration in range(max_iterations):
+
+            # M step
+            for idx, mask in enumerate(masks):
+                cur_sensitivity[idx] = np.sum(mask * consensus) / np.sum(consensus)
+                cur_specificity[idx] = np.sum((1 - mask) * (1 - consensus)) / np.sum(1-consensus)
+
+            consensus = np.zeros_like(masks[0], dtype=np.float32)
+            for combination_idx, combination in enumerate(combinations):
+
+                combination_masks = []
+                for logit in combination:
+                    combination_masks.append(np.ones_like(masks[0]) * logit)
+
+                alpha = np.ones(shape=masks[0].shape)
+                beta = np.ones(shape=masks[0].shape)
+                q = np.ones(shape=masks[0].shape)
+                for combination_mask_idx, combination_mask in enumerate(combination_masks):
+                    alpha[combination_mask == 1] = alpha[combination_mask == 1] * cur_sensitivity[combination_mask_idx]
+                    alpha[combination_mask == 0] = alpha[combination_mask == 0] * (1 - cur_sensitivity[combination_mask_idx])
+
+                    beta[combination_mask == 1] = beta[combination_mask == 1] * (1 - cur_specificity[combination_mask_idx])
+                    beta[combination_mask == 0] = beta[combination_mask == 0] * cur_specificity[combination_mask_idx]
+
+                    q[combination_mask == 1] = q[combination_mask == 1] * masks[combination_mask_idx][combination_mask == 1]
+                    q[combination_mask == 0] = q[combination_mask == 0] * (1 - masks[combination_mask_idx][combination_mask == 0])
+
+                consensus += q * (global_prior * alpha) / (global_prior * alpha + (1 - global_prior) * beta)
+
+            # Check convergence
+            convergence = True
+            for idx, _ in enumerate(masks):
+                sensitivity_change = np.abs(cur_sensitivity[idx] - sensitivity[idx])
+                specificity_change = np.abs(cur_specificity[idx] - specificity[idx])
+
+                sensitivity[idx] = cur_sensitivity[idx]
+                specificity[idx] = cur_specificity[idx]
+
+                if sensitivity_change > min_change or specificity_change > min_change:
+                    convergence = False
+
+            print("Completed {0} iteration".format(iteration))
+
+            if convergence:
+                break
+
+        return consensus, sensitivity, specificity
+
