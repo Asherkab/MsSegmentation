@@ -13,7 +13,7 @@ class MsDataPreparationSettings(object):
         # Dataset settings
         self.data = "../../Datasets/MMSEG_MICCAI2016/PreprocessedTrainingData"
         self.masks = "../../Datasets/MMSEG_MICCAI2016/PreprocessedTrainingData"
-        self.data_folder = "../../Datasets/MMSEG_MICCAI2016/PreprocessedTrainingData/axial_slices_dilation_0.1_label_0.3"
+        self.data_folder = "../../Datasets/MMSEG_MICCAI2016/PreprocessedTrainingData/axial_slices_dilation_0.2_label_0.3_with_soft_staple_simplified_implemented"
         self.data_definition_file_name = "ms_info.json"
         self.data_definition_file_path = os.path.join(self.data_folder, self.data_definition_file_name)
 
@@ -33,7 +33,7 @@ class MsDataPreparationSettings(object):
                       "08031SEVE_reg",
                       "08037ROGU_reg"]
         self.modalities = [0, 1, 2, 3, 4]
-        self.experts_num = 9  # 7 experts, consensus and intersection
+        self.experts_num = 10  # 7 experts(1-7), consensus(0), intersection(8), staple(9)
 
         # Data utils settings
         self.min_clip_value = None
@@ -41,16 +41,18 @@ class MsDataPreparationSettings(object):
         self.data_utils = DataUtils(self)
 
         # Ms utils settings
-        self.connected_to_original_mask = False
-        self.dilation_thr = 0.1
+        self.connected_to_original_mask = True
+        self.dilation_thr = 0.4
         self.initial_data_thr = 0.99
-        self.dilation_iterations = 6
+        self.dilation_iterations = 3
         self.soft_label = 0.3
+        self.apply_staple_threshold = True
+        self.staple_threshold = 0.5
         self.ms_utils = Utils(self)
 
         # Plot settings
-        self.plot_examples = False
-        self.output_plots_directory = "../../Datasets/MMSEG_MICCAI2016/PreprocessedTrainingData/plots"
+        self.plot_examples = True
+        self.output_plots_directory = "../../Datasets/MMSEG_MICCAI2016/PreprocessedTrainingData/plots_mask_average_heatmap_on_flair"
         self.plots = Plots(self)
 
         # Logger settings
