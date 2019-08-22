@@ -24,6 +24,12 @@ class MsMaskTypes(Enum):
 
     UNION = 200
 
-    STAPLE = 300
-    STAPLE_DILATED = 350
+    LOP_STAPLE = 300
+    LOP_STAPLE_DILATED = 350
+
+    STAPLE = 400
+    STAPLE_DILATED = 450
+
+    AVERAGE = 500
+    AVERAGE_DILATED = 550
 
