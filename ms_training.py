@@ -22,8 +22,6 @@ logger.log(settings.log_message)
 # Build and compile model
 model.build()
 model.compile()
-if settings.load_weights:
-    model.load_weights()
 logger.log(model.summary())
 
 # Split data to training/validation/test and folds
@@ -46,30 +44,42 @@ for fold in range(settings.folds):
     settings.load_weights_path = os.path.join(fold_simulation_folder, settings.load_weights_name)
     settings.training_log_path = os.path.join(fold_simulation_folder, settings.training_log_name)
 
-    # Save list of training/validation/test examples
-    generator.train_info[fold].to_json(os.path.join(fold_simulation_folder, settings.train_data_file_name))
-    generator.val_info[fold].to_json(os.path.join(fold_simulation_folder, settings.val_data_file_name))
-    generator.test_info[fold].to_json(os.path.join(fold_simulation_folder, settings.test_data_file_name))
-
     if settings.train_model:
+        # Save list of training/validation/test examples
+        generator.train_info[fold].to_json(os.path.join(fold_simulation_folder, settings.train_data_file_name))
+        generator.val_info[fold].to_json(os.path.join(fold_simulation_folder, settings.val_data_file_name))
+        generator.test_info[fold].to_json(os.path.join(fold_simulation_folder, settings.test_data_file_name))
+
         # Update simulation directories for training
         settings.save_weights_path = os.path.join(fold_simulation_folder, settings.save_weights_name)
 
         # Update callbacks to make effect of directories change
         settings.callbacks = [settings.callbacks_container.checkpoint(),
-                              settings.callbacks_container.csv_logger(),
-                              settings.callbacks_container.early_stopping(),
-                              settings.callbacks_container.reduce_lr_onplateu()]
+                              settings.callbacks_container.csv_logger()]
+                              # settings.callbacks_container.early_stopping(),
+                              # settings.callbacks_container.reduce_lr_onplateu()]
         model.build()
         model.compile()
+
+        if settings.load_weights:
+            model.load_weights()
+
         model.fit(fold=fold)  # Train model
     else:
         # Visualize training metrics
         plots.training_plot()
 
-        # Calculate predictions on training data
-        train_predictions = model.predict(run_mode=RunMode.TRAINING, fold=fold)
-        train_data = generator.get_data(run_mode=RunMode.TRAINING, fold=fold)
+        # Sort slices
+        generator.train_info[fold].sort_values(settings.sort_columns, inplace=True)
+        generator.test_info[fold].sort_values(settings.sort_columns, inplace=True)
+
+        if settings.find_opt_thr:
+            # Calculate predictions on training data
+            train_predictions = model.predict(run_mode=RunMode.TRAINING, fold=fold)
+            train_data = generator.get_data(run_mode=RunMode.TRAINING, fold=fold)
+        else:
+            train_predictions = None
+            train_data = None
 
         # Evaluate model and calculate predictions on test data
         test_predictions = model.predict(run_mode=RunMode.TEST, fold=fold)
@@ -80,8 +90,8 @@ for fold in range(settings.folds):
         test_predictions = dataset.apply_postprocessing(test_predictions, test_data,
                                                         train_predictions, train_data,
                                                         {"train_info": generator.train_info[fold],
-                                                        "val_info": generator.val_info[fold],
-                                                        "test_info": generator.test_info[fold]})
+                                                         "val_info": generator.val_info[fold],
+                                                         "test_info": generator.test_info[fold]})
 
         # Calculate metrics
         dataset.calculate_fold_metrics(test_predictions, test_data, test_evaluations, train_predictions, train_data,
